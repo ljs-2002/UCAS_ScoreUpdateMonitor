@@ -57,7 +57,7 @@
   1. 右键`config.ps1`，选择**使用 PowerShell 运行**，`config.ps1`会根据当前路径配置`UCASScoreUpdateMonitor.xml`文件；
      - **若该步骤运行失败**可以直接打开`UCASScoreUpdateMonitor.xml`文件并将文件中`__command_file__`处替换为`ScoreUpdateMonitor.exe`文件的绝对路径，将`__working_dir__`处替换为`ScoreUpdateMonitor.exe`文件所在的文件夹的绝对路径；
 
-  2. 右键`reg.bat`选择**以管理员身份运行**，`reg.bat`会自动将检测更新程序注册为任务计划程序，并在用户每次解锁电脑时触发；
+  2. 右键`reg.bat`选择**以管理员身份运行**，`reg.bat`会自动将检测更新程序注册为任务计划程序，并在用户每次解锁电脑时触发，之后间隔一天触发一次，若中途有解锁则会刷新间隔；
      - **若该步骤失败**可以打开Windows的任务计划程序，选择**导入任务**，通过`UCASScoreUpdateMonitor.xml`文件导入任务；
      - 导入成功后会产生名为`UCASScoreUpdateMonitor`的任务，用户可以根据自己的需要自行定义任务触发的事件，每次任务触发即为检测一次更新；
 
@@ -163,3 +163,4 @@
 ## 更新
 
 - 2023/07/23：增加实时GPA计算
+- 2023/07/23：修复中期退课的课程分数为空，在计算GPA时引发异常的bug

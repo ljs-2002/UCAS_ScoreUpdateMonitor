@@ -113,7 +113,7 @@ class ScoreUpdateMonitor:
         total_gpa = 0
         for class_ in all_score_date:
             score = class_['score']
-            if score.isdigit() is False:
+            if score is None or score.isdigit() is False:
                 continue
             score = int(score)
             if score > 90:
