@@ -1,15 +1,15 @@
-# step1: 访问登陆页面，获取cookie：JSESSIONID
 import requests
 import re
 import base64
 import ddddocr
 import json
-import os.path
-from os import getcwd
+import os
+import sys
+from .score_update_logger import MyLogger
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pksc1_v1_5
 from Crypto.PublicKey import RSA
 
-
+logger = MyLogger('ScoreUpdateMonitor')
 class ScoreUpdateMonitor:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.82'
@@ -19,13 +19,17 @@ class ScoreUpdateMonitor:
     slogin_url = 'https://sep.ucas.ac.cn/slogin'
     redirect_url = 'https://sep.ucas.ac.cn/portal/site/226/821'
     score_base_url = 'https://jwxk.ucas.ac.cn/score/bks/'
-    userInfo_path = os.path.join(getcwd(),'config','userInfo.json')
-    cur_score_path = os.path.join(getcwd(),'tmp','cur_score.json')
-    ocr = ddddocr.DdddOcr()
     pub_re = re.compile(r'var jsePubKey = \'(.*?)\'')
     error_re = re.compile(r'<div class="alert alert-error">(.*?)</div>',re.S)
     redirect_re = re.compile(r'2秒钟没有响应请点击<a href="(.*?)"><strong>这里', re.S)
+    root_path = os.path.dirname(os.path.realpath(sys.argv[0]))
+    userInfo_path = os.path.join(root_path,'config','userInfo.json')
+    cur_score_path = os.path.join(root_path,'tmp','cur_score.json')
+    module_path = os.path.join(root_path,'module','sep.onnx')
+    charsets_path = os.path.join(root_path,'module','charsets.json')
     def __init__(self):
+        # 使用自己训练的模型
+        self.ocr = ddddocr.DdddOcr(show_ad=False,ocr=False,det=False,import_onnx_path=self.module_path,charsets_path=self.charsets_path)
         self.session = requests.Session()
         self.session.headers.update(self.headers)
         self.session.keep_alive = True
@@ -43,7 +47,7 @@ class ScoreUpdateMonitor:
         cipher_text = base64.b64encode(cipher.encrypt(password.encode()))
         return cipher_text.decode()
 
-    def __login(self):
+    def __do_login(self):
         response = self.session.get(self.login_url)
         if response.status_code == 200:
             # 获取公钥
@@ -56,7 +60,7 @@ class ScoreUpdateMonitor:
                 certCode = self.ocr.classification(img_bytes)
             else:
                 self.session.close()
-                raise Exception(f'get certCode error code: {pic.status_code}')
+                raise Exception(f'get certCode error code: {pic.status_code}, {pic.text}')
             # 密码的加密
             password = self.encrypt(self.password, pub_key)
             # 登陆
@@ -74,11 +78,28 @@ class ScoreUpdateMonitor:
                     raise Exception(fail[0])
             else:
                 self.session.close()
-                raise Exception(f'login error code: {response.status_code}')
+                raise Exception(f'login error code: {response.status_code}, {response.text}')
         else:
             self.session.close()
-            raise Exception(f'try to login but fail, error code: {response.status_code}')
-        
+            raise Exception(f'try to login but fail, error code: {response.status_code}, {response.text}')
+    
+    def __login(self,retry=3):
+        count = 0
+        while True:
+            # 若登陆失败的原因是验证码错误，则重试
+            try:
+                self.__do_login()
+                return
+            except Exception as e:
+                if str(e) == '验证码错误':
+                    count += 1
+                    if count < retry:
+                        continue
+                    else:
+                        raise Exception('验证码错误次数过多')
+                else:
+                    raise e
+
     def __get_score(self):
         response = self.session.get(self.redirect_url)
         if response.status_code == 200:
@@ -99,64 +120,86 @@ class ScoreUpdateMonitor:
                     cur_score_data['termId'] = cur_term
                     return cur_score_data
                 else:
-                    raise Exception(f'get current score error code: {response.status_code}')
+                    raise Exception(f'get current score error code: {response.status_code}, {response.text}')
             else:
                 self.session.close()
-                raise Exception(f'redirect error code: {response.status_code}')
+                raise Exception(f'redirect error code: {response.status_code}, {response.text}')
         else:
             self.session.close()
-            raise Exception(f'get redirect url error code: {response.status_code}')
+            raise Exception(f'get redirect url error code: {response.status_code}, {response.text}')
     
     def __compare_score(self, cur_score_data):
         gpa_info = f"GPA: {cur_score_data['student']['gpaInland']}, 排名: {cur_score_data['student']['gpaInlandSort']}/{cur_score_data['gpasorttotal']}\n\n"
         if not os.path.exists(self.cur_score_path):
             with open(self.cur_score_path, 'w',encoding='utf-8') as f:
                 json.dump(cur_score_data, f, ensure_ascii=False)
-            return cur_score_data['list'],gpa_info
+            return cur_score_data['list'],gpa_info,True
         with open(self.cur_score_path, 'r',encoding='utf-8') as f:
             last_score_data = json.load(f)
         cur_score = cur_score_data['list']
         last_score = last_score_data['list']
         cur_id = cur_score_data['termId']
         last_id = last_score_data['termId']
-        if cur_id != last_id or len(cur_score) != len(last_score):
+        send_message = False
+        # 如果不同学期或有新科目出分，或GPA变化，或GPA排名变化，则更新缓存文件
+        if cur_id != last_id or len(cur_score) != len(last_score) or cur_score_data['student']['gpaInland'] != last_score_data['student']['gpaInland'] or cur_score_data['student']['gpaInlandSort'] != last_score_data['student']['gpaInlandSort']:
             with open(self.cur_score_path, 'w',encoding='utf-8') as f:
                 json.dump(cur_score_data, f, ensure_ascii=False)
-        return [item for item in cur_score if item not in last_score],gpa_info
+            send_message = True
+        return [item for item in cur_score if item not in last_score],gpa_info,send_message
 
     def __send_api_message(self,error:bool,diff_list:list[dict]=[],error_message:str=None,gpa_info:str=None):
         api_url = f'https://sctapi.ftqq.com/{self.apikey}.send?'
-        title = 'Score Update Monitor'
+        title = 'Score Update Monitor: '
         if error:
-            title = title + ' Error'
+            title = title + 'Error'
             content = error_message
-        else:
-            title = title + ' Update'
+        elif len(diff_list) > 0:
+            title = title + 'Score Update'
             content = gpa_info+'|更新的科目|学分|成绩|\n|--|--|--|\n'
             for item in diff_list:
                 line = f'|{item["courseName"]}|{item["courseCredit"]}|{item["score"]}|\n'
                 content = content + line
+        else:
+            title = title + 'GPA Update'
+            content = gpa_info
         postdata = {
             'title': title,
             'desp': content
         }
         if gpa_info is not None:
             postdata['short'] = gpa_info
-        response = requests.post(api_url, data=postdata)
-        if response.status_code != 200:
-            raise Exception(f'send message error code: {response.status_code}')
+        logger.log(f'send message: {content}')
+        if len(self.apikey)>0:
+            logger.log('send message to api')
+            response = requests.post(api_url, data=postdata)
+            if response.status_code != 200:
+                raise Exception(f'send message error code: {response.status_code}, {response.text}')
+        else:
+            logger.log('apikey is empty, do not send message to api')
         
 
 
     def launch(self):
+        logger.log('---------------')
+        logger.log('start')
         try:
             self.__login()
             cur_score_data = self.__get_score()
+            diff_list,gpa_info,send_message = self.__compare_score(cur_score_data)
         except Exception as e:
-            self.__send_api_message(True,error_message=str(e))
-            raise e
+            logger.log(f'error: {e}')
+            try:
+                self.__send_api_message(True,error_message=str(e))
+            except Exception as e:
+                logger.log(f'send message error: {e}')
         else:
-            diff_list,gpa_info = self.__compare_score(cur_score_data)
-            if len(diff_list) != 0:
-                self.__send_api_message(False,diff_list=diff_list,gpa_info=gpa_info)
-        print('done')
+            try:
+                if send_message:
+                    self.__send_api_message(False,diff_list=diff_list,gpa_info=gpa_info)
+                else:
+                    logger.log('there is no update')
+            except Exception as e:
+                logger.log(f'send message error: {e}')
+        logger.log('finish')
+        logger.log('---------------')
