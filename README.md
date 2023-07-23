@@ -65,6 +65,7 @@
   ```
   .
   │  config.ps1
+  │  README.md
   │  reg.bat
   │  ScoreUpdateMonitor.bat
   │  ScoreUpdateMonitor.exe
@@ -100,6 +101,36 @@
     ```
 
   - Linux下设置定时运行的方式**请自行搜索**。
+
+- 文件结构如下
+
+  ```
+  .
+  │  main.py
+  │  README.md
+  │
+  ├─assets
+  │      favicon.ico
+  │
+  ├─config
+  │      userInfo.json
+  │
+  ├─log
+  │      log.txt
+  │
+  ├─module
+  │      charsets.json
+  │      sep.onnx
+  │
+  ├─src
+  │      score_update_logger.py
+  │      score_update_monitor.py
+  │
+  └─tmp
+          cur_score.json
+  ```
+
+  
 
 ### MAC
 
