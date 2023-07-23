@@ -41,9 +41,9 @@
 
 - 接着根据平台不同继续进行配置：
 
-  - [Windows平台](#Windows)
-  - [Linux平台](#Linux)
-  - [MAC平台](#MAC)
+  - [Windows平台](#windows)
+  - [Linux平台](#linux)
+  - [MAC平台](#mac)
 
   
 
