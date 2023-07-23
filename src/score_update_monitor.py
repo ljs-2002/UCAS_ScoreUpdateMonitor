@@ -38,6 +38,7 @@ class ScoreUpdateMonitor:
         self.username = userInfo['userName']
         self.password = userInfo['password']
         self.apikey = userInfo['apikey']
+        self.gpa = 0.0
     
     @staticmethod
     def encrypt(password, public_key):
@@ -99,7 +100,32 @@ class ScoreUpdateMonitor:
                         raise Exception('验证码错误次数过多')
                 else:
                     raise e
-
+    def __cal_GPA(self,all_score_date:list[dict]):
+        gpa_table = {90: 4.0, 89: 3.9, 88: 3.9, 87: 3.9, 86: 3.8,
+                    85: 3.8, 84: 3.7, 83: 3.7, 82: 3.6, 81: 3.5,
+                    80: 3.5, 79: 3.4, 78: 3.4, 77: 3.3, 76: 3.3,
+                    75: 3.2, 74: 3.1, 73: 3.0, 72: 2.9, 71: 2.8,
+                    70: 2.7, 69: 2.7, 68: 2.6, 67: 2.5, 66: 2.4,
+                    65: 2.3, 64: 2.3, 63: 2.2, 62: 2.1, 61: 1.8,
+                    60: 1.6, 59: 0.0
+                }
+        total_credit = 0
+        total_gpa = 0
+        for class_ in all_score_date:
+            score = class_['score']
+            if score.isdigit() is False:
+                continue
+            score = int(score)
+            if score > 90:
+                score = 90
+            elif score < 60:
+                score = 59
+            total_gpa += gpa_table[score]*class_['courseCredit']
+            total_credit += class_['courseCredit']
+        gpa = total_gpa / total_credit
+        return gpa
+            
+        
     def __get_score(self):
         response = self.session.get(self.redirect_url)
         if response.status_code == 200:
@@ -111,6 +137,7 @@ class ScoreUpdateMonitor:
                 response = self.session.get(all_url)
                 score_data = response.json()
                 cur_term = str(score_data['openRetestTerm']['termId'])
+                self.gpa = self.__cal_GPA(score_data['list'])
                 url = self.score_base_url + cur_term + '.json'
                 # 获取当前学期的成绩
                 response = self.session.get(url)
@@ -129,7 +156,7 @@ class ScoreUpdateMonitor:
             raise Exception(f'get redirect url error code: {response.status_code}, {response.text}')
     
     def __compare_score(self, cur_score_data):
-        gpa_info = f"GPA: {cur_score_data['student']['gpaInland']}, 排名: {cur_score_data['student']['gpaInlandSort']}/{cur_score_data['gpasorttotal']}\n\n"
+        gpa_info = f"GPA/实时GPA: {cur_score_data['student']['gpaInland']}/{self.gpa}\n\n排名: {cur_score_data['student']['gpaInlandSort']}/{cur_score_data['gpasorttotal']}\n\n"
         if not os.path.exists(self.cur_score_path):
             with open(self.cur_score_path, 'w',encoding='utf-8') as f:
                 json.dump(cur_score_data, f, ensure_ascii=False)
