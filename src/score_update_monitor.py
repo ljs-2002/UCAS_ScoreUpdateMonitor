@@ -156,7 +156,7 @@ class ScoreUpdateMonitor:
             raise Exception(f'get redirect url error code: {response.status_code}, {response.text}')
     
     def __compare_score(self, cur_score_data):
-        gpa_info = f"GPA/实时GPA: {cur_score_data['student']['gpaInland']}/{self.gpa}\n\n排名: {cur_score_data['student']['gpaInlandSort']}/{cur_score_data['gpasorttotal']}\n\n"
+        gpa_info = f"GPA/实时GPA: {cur_score_data['student']['gpa']}/{self.gpa}\n\n排名: {cur_score_data['student']['gpaSort']}/{cur_score_data['gpasorttotal']}\n\n"
         if not os.path.exists(self.cur_score_path):
             with open(self.cur_score_path, 'w',encoding='utf-8') as f:
                 json.dump(cur_score_data, f, ensure_ascii=False)
@@ -169,7 +169,7 @@ class ScoreUpdateMonitor:
         last_id = last_score_data['termId']
         send_message = False
         # 如果不同学期或有新科目出分，或GPA变化，或GPA排名变化，则更新缓存文件
-        if cur_id != last_id or len(cur_score) != len(last_score) or cur_score_data['student']['gpaInland'] != last_score_data['student']['gpaInland'] or cur_score_data['student']['gpaInlandSort'] != last_score_data['student']['gpaInlandSort']:
+        if cur_id != last_id or len(cur_score) != len(last_score) or cur_score_data['student']['gpa'] != last_score_data['student']['gpa'] or cur_score_data['student']['gpaSort'] != last_score_data['student']['gpaSort']:
             with open(self.cur_score_path, 'w',encoding='utf-8') as f:
                 json.dump(cur_score_data, f, ensure_ascii=False)
             send_message = True
