@@ -29,7 +29,7 @@
   │
   ├─config
   │      userInfo.json
-  │	   config.json
+  │      config.json
   │
   ├─log
   │      log.txt
@@ -82,7 +82,7 @@
   │
   ├─config
   │      userInfo.json
-  │	   config.json
+  │      config.json
   │
   ├─log
   │      log.txt
@@ -121,7 +121,7 @@
   │
   ├─config
   │      userInfo.json
-  │	   config.json
+  │      config.json
   │
   ├─log
   │      log.txt
