@@ -6,19 +6,12 @@ import json
 import os
 import sys
 from .score_update_logger import MyLogger
+from .util import detailException
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pksc1_v1_5
 from Crypto.PublicKey import RSA
 
 logger = MyLogger('ScoreUpdateMonitor')
 class ScoreUpdateMonitor:
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.82'
-    }
-    login_url = 'https://sep.ucas.ac.cn/'
-    pic_url = 'https://sep.ucas.ac.cn/changePic'
-    slogin_url = 'https://sep.ucas.ac.cn/slogin'
-    redirect_url = 'https://sep.ucas.ac.cn/portal/site/226/821'
-    score_base_url = 'https://jwxk.ucas.ac.cn/score/bks/'
     pub_re = re.compile(r'var jsePubKey = \'(.*?)\'')
     error_re = re.compile(r'<div class="alert alert-error">(.*?)</div>',re.S)
     redirect_re = re.compile(r'2秒钟没有响应请点击<a href="(.*?)"><strong>这里', re.S)
@@ -27,6 +20,16 @@ class ScoreUpdateMonitor:
     cur_score_path = os.path.join(root_path,'tmp','cur_score.json')
     module_path = os.path.join(root_path,'module','sep.onnx')
     charsets_path = os.path.join(root_path,'module','charsets.json')
+    with open(os.path.join(root_path,'config','config.json'),'r') as f:
+        config = json.load(f)
+    headers = {
+        'User-Agent': config['User-Agent'],
+    }
+    login_url = config['login_url']
+    pic_url = config['pic_url']
+    slogin_url = config['slogin_url']
+    redirect_url = config['redirect_url']
+    score_base_url = config['score_base_url']
     def __init__(self):
         # 使用自己训练的模型
         self.ocr = ddddocr.DdddOcr(show_ad=False,ocr=False,det=False,import_onnx_path=self.module_path,charsets_path=self.charsets_path)
@@ -48,11 +51,16 @@ class ScoreUpdateMonitor:
         cipher_text = base64.b64encode(cipher.encrypt(password.encode()))
         return cipher_text.decode()
 
+    @detailException
     def __do_login(self):
         response = self.session.get(self.login_url)
         if response.status_code == 200:
             # 获取公钥
-            pub_key = self.pub_re.findall(response.text)[0]
+            pub_keys = self.pub_re.findall(response.text)
+            if len(pub_keys) == 0:
+                self.session.close()
+                raise Exception('get public key fail')
+            pub_key = pub_keys[0]
             # 获取验证码
             pic = self.session.get(self.pic_url)
             # 识别验证码
@@ -84,6 +92,7 @@ class ScoreUpdateMonitor:
             self.session.close()
             raise Exception(f'try to login but fail, error code: {response.status_code}, {response.text}')
     
+    @detailException
     def __login(self,retry=3):
         count = 0
         while True:
@@ -100,6 +109,7 @@ class ScoreUpdateMonitor:
                         raise Exception('验证码错误次数过多')
                 else:
                     raise e
+    @detailException
     def __cal_GPA(self,all_score_date:list[dict]):
         gpa_table = {90: 4.0, 89: 3.9, 88: 3.9, 87: 3.9, 86: 3.8,
                     85: 3.8, 84: 3.7, 83: 3.7, 82: 3.6, 81: 3.5,
@@ -122,14 +132,20 @@ class ScoreUpdateMonitor:
                 score = 59
             total_gpa += gpa_table[score]*class_['courseCredit']
             total_credit += class_['courseCredit']
+        if total_credit == 0:
+            return 0.0
         gpa = total_gpa / total_credit
         return gpa
             
-        
+    @detailException
     def __get_score(self):
         response = self.session.get(self.redirect_url)
         if response.status_code == 200:
-            redirect_url = self.redirect_re.findall(response.text)[0]
+            redirect_urls = self.redirect_re.findall(response.text)
+            if len(redirect_urls) == 0:
+                self.session.close()
+                raise Exception(f'get redirect url fail,all response is {response.text}')
+            redirect_url = redirect_urls[0]
             response = self.session.get(redirect_url)
             if response.status_code == 200:
                 # 从所有成绩界面中获取当前学期的ID
@@ -155,6 +171,7 @@ class ScoreUpdateMonitor:
             self.session.close()
             raise Exception(f'get redirect url error code: {response.status_code}, {response.text}')
     
+    @detailException
     def __compare_score(self, cur_score_data):
         gpa_info = f"GPA/实时GPA: {cur_score_data['student']['gpa']}/{self.gpa}\n\n排名: {cur_score_data['student']['gpaSort']}/{cur_score_data['gpasorttotal']}\n\n"
         if not os.path.exists(self.cur_score_path):
@@ -175,6 +192,7 @@ class ScoreUpdateMonitor:
             send_message = True
         return [item for item in cur_score if item not in last_score],gpa_info,send_message
 
+    @detailException
     def __send_api_message(self,error:bool,diff_list:list[dict]=[],error_message:str=None,gpa_info:str=None):
         api_url = f'https://sctapi.ftqq.com/{self.apikey}.send?'
         title = 'Score Update Monitor: '
@@ -205,8 +223,7 @@ class ScoreUpdateMonitor:
         else:
             logger.log('apikey is empty, do not send message to api')
         
-
-
+    @detailException
     def launch(self):
         logger.log('---------------')
         logger.log('start')

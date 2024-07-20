@@ -12,8 +12,9 @@
   1. 打开`./config/userInfo.json`文件，在`userName`字段填入登陆`SEP`的用户名，在`password`字段填入登陆`SEP`的密码；
 
      - 这两个字段用于模拟登陆；
-
-  2. （选做）为了实现成绩/绩点更新时发送提醒功能，使用了[Server酱](https://sct.ftqq.com/)提供的微信提醒API，用户需要扫码登陆后在**Key&API**界面复制**SendKey**，并填写到`./config/userInfo.json`文件的`apikey`字段；
+  2. 首次使用/若上次登陆sep时使用的浏览器与之前使用的浏览器不同/手动登陆sep时出现了重新认证提示，请打开`./config/config.json`文件，修改**User-Agent**字段为最新的浏览器User-Agent。
+     - 附获取浏览器User-Agent的方法：在浏览器地址栏输入**about:version**，打开的页面中的**用户代理**，或**User-Agent**，或**UA**即为所需User-Agent。
+  3. （选做）为了实现成绩/绩点更新时发送提醒功能，使用了[Server酱](https://sct.ftqq.com/)提供的微信提醒API，用户需要扫码登陆后在**Key&API**界面复制**SendKey**，并填写到`./config/userInfo.json`文件的`apikey`字段；
 
      - 若不填写`apikey`字段，则不会收到成绩/绩点更新的提醒，用户可以在`./log/log.txt`中查看更新情况；
      - 该API截止目前（2023/07/23）每天都有免费的发送额度，正常情况下不会给用户造成任何支出；
@@ -28,6 +29,7 @@
   │
   ├─config
   │      userInfo.json
+  │	   config.json
   │
   ├─log
   │      log.txt
@@ -39,6 +41,8 @@
   └─tmp
           cur_score.json
   ```
+
+- **注意：**`./conifg/config.json`中可以配置各个过程的url，若查询接口变化可以通过该文件进行配置。
 
 - 接着根据平台不同继续进行配置：
 
@@ -55,14 +59,15 @@
 - 文件结构及配置过程如下
 
   1. 右键`config.ps1`，选择**使用 PowerShell 运行**，`config.ps1`会根据当前路径配置`UCASScoreUpdateMonitor.xml`文件；
-     - **若该步骤运行失败**可以直接打开`UCASScoreUpdateMonitor.xml`文件并将文件中`__command_file__`处替换为`ScoreUpdateMonitor.exe`文件的绝对路径，将`__working_dir__`处替换为`ScoreUpdateMonitor.exe`文件所在的文件夹的绝对路径；
+     - **若该步骤运行失败**可以直接打开`UCASScoreUpdateMonitor.xml`文件并将文件中`__command_file__`处替换为`ScoreUpdateMonitor.bat`文件的绝对路径，将`__working_dir__`处替换为`ScoreUpdateMonitor.bat`文件所在的文件夹的绝对路径；
 
   2. 右键`reg.bat`选择**以管理员身份运行**，`reg.bat`会自动将检测更新程序注册为任务计划程序，并在用户每次解锁电脑时触发，之后间隔一天触发一次，若中途有解锁则会刷新间隔；
      - **若该步骤失败**可以打开Windows的任务计划程序，选择**导入任务**，通过`UCASScoreUpdateMonitor.xml`文件导入任务；
      - 导入成功后会产生名为`UCASScoreUpdateMonitor`的任务，用户可以根据自己的需要自行定义任务触发的事件，每次任务触发即为检测一次更新；
-
+  3. 按照所有平台基本配置过程**设置自己的User-Agent**；
+  
   - 至此，程序的配置完成。
-
+  
   ```
   .
   │  config.ps1
@@ -77,6 +82,7 @@
   │
   ├─config
   │      userInfo.json
+  │	   config.json
   │
   ├─log
   │      log.txt
@@ -115,6 +121,7 @@
   │
   ├─config
   │      userInfo.json
+  │	   config.json
   │
   ├─log
   │      log.txt
@@ -130,7 +137,7 @@
   └─tmp
           cur_score.json
   ```
-
+  
   
 
 ### MAC
