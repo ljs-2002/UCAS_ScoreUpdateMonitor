@@ -18,6 +18,7 @@ class ScoreUpdateMonitor:
     root_path = os.path.dirname(os.path.realpath(sys.argv[0]))
     userInfo_path = os.path.join(root_path,'config','userInfo.json')
     cur_score_path = os.path.join(root_path,'tmp','cur_score.json')
+    cur_score_dir = os.path.join(root_path,'tmp')
     module_path = os.path.join(root_path,'module','sep.onnx')
     charsets_path = os.path.join(root_path,'module','charsets.json')
     with open(os.path.join(root_path,'config','config.json'),'r') as f:
@@ -174,7 +175,8 @@ class ScoreUpdateMonitor:
     @detailException
     def __compare_score(self, cur_score_data):
         gpa_info = f"GPA/实时GPA: {cur_score_data['student']['gpa']}/{self.gpa}\n\n排名: {cur_score_data['student']['gpaSort']}/{cur_score_data['gpasorttotal']}\n\n"
-        if not os.path.exists(self.cur_score_path):
+        if not os.path.exists(self.cur_score_dir) or not os.path.exists(self.cur_score_path):
+            os.makedirs(self.cur_score_dir, exist_ok=True)
             with open(self.cur_score_path, 'w',encoding='utf-8') as f:
                 json.dump(cur_score_data, f, ensure_ascii=False)
             return cur_score_data['list'],gpa_info,True

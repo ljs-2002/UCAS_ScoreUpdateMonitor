@@ -12,7 +12,7 @@
   1. 打开`./config/userInfo.json`文件，在`userName`字段填入登陆`SEP`的用户名，在`password`字段填入登陆`SEP`的密码；
 
      - 这两个字段用于模拟登陆；
-  2. 首次使用/若上次登陆sep时使用的浏览器与之前使用的浏览器不同/手动登陆sep时出现了重新认证提示，请打开`./config/config.json`文件，修改**User-Agent**字段为最新的浏览器User-Agent。
+  2. 首次使用/若上次登陆sep时使用的浏览器与之前使用的浏览器不同/手动登陆sep时出现了重新认证提示，请打开`./config/config.json`文件，修改**User-Agent**字段为最新的浏览器User-Agent。并使用浏览器先完成认证后再使用。
      - 附获取浏览器User-Agent的方法：在浏览器地址栏输入**about:version**，打开的页面中的**用户代理**，或**User-Agent**，或**UA**即为所需User-Agent。
   3. （选做）为了实现成绩/绩点更新时发送提醒功能，使用了[Server酱](https://sct.ftqq.com/)提供的微信提醒API，用户需要扫码登陆后在**Key&API**界面复制**SendKey**，并填写到`./config/userInfo.json`文件的`apikey`字段；
 
@@ -29,7 +29,7 @@
   │
   ├─config
   │      userInfo.json
-  │	   config.json
+  │      config.json
   │
   ├─log
   │      log.txt
@@ -82,7 +82,7 @@
   │
   ├─config
   │      userInfo.json
-  │	   config.json
+  │      config.json
   │
   ├─log
   │      log.txt
@@ -121,7 +121,7 @@
   │
   ├─config
   │      userInfo.json
-  │	   config.json
+  │      config.json
   │
   ├─log
   │      log.txt
@@ -164,6 +164,14 @@
 - [ ] 实现邮件通知和短信通知
 - [ ] 实现Linux一键配置
 - [ ] 实现MAC一键配置
+- [ ] 使用github action实现打包和预发布
+- [ ] ...
+
+
+
+## 问题反馈
+
+- 在使用中遇到问题，请提交[Issue](https://github.com/ljs-2002/UCAS_ScoreUpdateMonitor/issues)。
 
 
 
@@ -171,3 +179,4 @@
 
 - 2023/07/23：增加实时GPA计算
 - 2023/07/23：修复中期退课的课程分数为空，在计算GPA时引发异常的bug
+- 2024/07/20：更新相关接口，修复SEP新增的新设备登陆认证导致的模拟登陆失败问题
